@@ -1,5 +1,4 @@
-#ifndef THREAD_POOL_H
-#define THREAD_POOL_H
+#pragma once
 
 #include <mutex>
 #include <queue>
@@ -8,50 +7,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
-
-// THread safe implementation of a Queue using a std::queue
-template<typename T>
-class SafeQueue
-{
-    private:
-        std::queue<T> m_queue;
-        std::mutex m_mutex;
-    
-    public:
-        SafeQueue() {}
-        SafeQueue(SafeQueue &&other){}
-        ~SafeQueue() {}
-
-        bool empty(){
-            std::unique_lock<std::mutex> lock(m_mutex);
-            return m_queue.empty();
-        }
-
-        int size(){
-            std::unique_lock<std::mutex> lock(m_mutex);
-            return m_queue.size();
-        }
-
-        // 队列添加元素
-        void enqueue(T &t) {
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_queue.emplace(t);
-        }
-
-        // 队列取出元素
-        bool dequeue(T &t) {
-            std::unique_lock<std::mutex> lock(m_mutex);
-
-            if(m_queue.empty())
-                return false;
-
-            t = std::move(m_queue.front());
-
-            m_queue.pop();
-
-            return true;
-        }
-};
+#include "block_queue.cpp"
 
 
 class ThreadPool
@@ -61,39 +17,35 @@ private:
     {
         private:
             int m_id; // 工作id
-
             ThreadPool *m_pool;  // 所属线程池
+
         public:
             ThreadWorker(ThreadPool *pool, const int id) : m_pool(pool), m_id(id){
 
             }
 
-            // 重载（）操作
             void operator()(){
                 std::function<void()> func;
-
-                bool dequeued;
 
                 while(!m_pool->m_shutdown) {
                     {
                         std::unique_lock<std::mutex> lock(m_pool->m_conditional_mutex);
-
-                        if(m_pool->m_queue.empty()) {
+                        while(m_pool->m_queue.empty()) {
                             m_pool->m_conditional_lock.wait(lock);
+                            if(m_pool->m_shutdown) {
+                                return;
+                            }
                         }
-
-                        dequeued = m_pool->m_queue.dequeue(func);
+                        func = m_pool->m_queue.pop();
                     }
-
-                    if(dequeued)
-                        func();
+                    func();
                 }
             }
     };
 
     bool m_shutdown; 
 
-    SafeQueue<std::function<void()>> m_queue; // 执行函数安全队列，即任务队列
+    BlockQueue<std::function<void()>> m_queue; // 执行函数安全队列，即任务队列
 
     std::vector<std::thread> m_threads;
 
@@ -129,6 +81,11 @@ public:
         }
     }
 
+    ~ThreadPool(){
+        if(m_shutdown == false)
+            shutdown();
+    }
+
     // submit a function to be executed asynchronously by the pool
     template <typename F, typename... Args>
     auto submit(F &&f, Args &&...args) -> std::future<decltype(f(args...))> {
@@ -142,12 +99,10 @@ public:
             (*task_ptr)();
         };
 
-        m_queue.enqueue(warpper_func);
+        m_queue.push_back(warpper_func);
 
         m_conditional_lock.notify_one();
 
         return task_ptr->get_future();
     }
 };
-
-#endif

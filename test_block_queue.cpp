@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
 #include <stdio.h>
-#include "block_thread.cpp"
+#include "block_queue.cpp"
 
 using namespace std;
  
@@ -37,4 +37,3 @@ int main()
 	t1.join();
 	return 0;
 }
-

@@ -33,16 +33,15 @@ int multiply_return(const int a, const int b) {
 }
 
 void example(){
-    ThreadPool pool(3);
+    ThreadPool pool(10);
 
     pool.init();
 
     for(int i=1; i<=3; i++) {
-        for(int j=1; j<=10; j++){
+        for(int j=1; j<=2; j++){
             pool.submit(multiply, i, j);
         }
     }
-
 
     int output_ref;
     auto future1 = pool.submit(multiply_output, std::ref(output_ref), 5, 6);
@@ -53,13 +52,12 @@ void example(){
     auto future2 = pool.submit(multiply_return, 5, 3);
 
     int res = future2.get();
-    std::cout << "Last operation result is equals to" << res << std::endl;
+    std::cout << "Last operation result is equals to " << res << std::endl;
 
     pool.shutdown();
 }
 
 int main(){
     example();
-
     return 0;
 }
