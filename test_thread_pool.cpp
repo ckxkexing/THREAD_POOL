@@ -9,7 +9,7 @@ std::uniform_int_distribution<int> dist(-1000, 1000);
 
 auto rnd = std::bind(dist, mt);
 
-void simulate_hard_computation(){
+void simulate_hard_computation() {
     std::this_thread::sleep_for(std::chrono::milliseconds(2000 + rnd()));
 }
 
@@ -32,13 +32,13 @@ int multiply_return(const int a, const int b) {
     return res;
 }
 
-void example(){
+void example() {
     ThreadPool pool(10);
 
     pool.init();
 
-    for(int i=1; i<=3; i++) {
-        for(int j=1; j<=2; j++){
+    for (int i = 1; i <= 3; i++) {
+        for (int j = 1; j <= 2; j++) {
             pool.submit(multiply, i, j);
         }
     }
@@ -57,7 +57,7 @@ void example(){
     pool.shutdown();
 }
 
-int main(){
+int main() {
     example();
     return 0;
 }
